@@ -9,7 +9,7 @@ import { addToWishlist } from "../../../services/wishlist";
 import { createOrder } from "../../../services/orders";
 import { useCartStore } from "../../../store/cartStore";
 import { isLoggedIn } from "../../../services/auth";
-import { cacheWishlistProduct } from "../../../store/wishlistCache";
+import { cacheWishlistProduct, saveLocalWishlistItem } from "../../../store/wishlistCache";
 import { toast } from "sonner";
 import { MOCK_PRODUCTS, getProductById } from "../../../data/mockProducts";
 import {
@@ -100,17 +100,22 @@ export default function ProductPage() {
 
   async function handleWishlist() {
     if (!loggedIn) { toast.error("Please sign in first"); return; }
+    const details = {
+      name: product.name, price: product.price,
+      discount_price: product.discount_price,
+      image: product.images?.[0] || product.image,
+      brand: product.brand,
+    };
+    cacheWishlistProduct(product.id, details);
     try {
-      cacheWishlistProduct(product.id, {
-        name: product.name, price: product.price,
-        discount_price: product.discount_price,
-        image: product.images?.[0] || product.image,
-        brand: product.brand,
-      });
       await addToWishlist(product.id);
-      setWishlisted(true);
-      toast.success("Added to Wish List");
-    } catch { toast.error("Could not add to Wish List"); }
+    } catch (err) {
+      if (err?.response?.status === 401) { toast.error("Please sign in first"); return; }
+      // Backend doesn't know this product ID — save locally
+      saveLocalWishlistItem(product.id, details);
+    }
+    setWishlisted(true);
+    toast.success("Added to Wish List");
   }
 
   async function handleRufusQuestion(q) {

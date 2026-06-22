@@ -5,7 +5,7 @@ import Footer from "../../components/layout/Footer";
 import { getWishlist, removeFromWishlist } from "../../services/wishlist";
 import { getProduct } from "../../services/products";
 import { isLoggedIn } from "../../services/auth";
-import { enrichWishlistItems, cacheWishlistProduct } from "../../store/wishlistCache";
+import { enrichWishlistItems, cacheWishlistProduct, getLocalWishlistItems, removeLocalWishlistItem } from "../../store/wishlistCache";
 import { useCartStore } from "../../store/cartStore";
 import { toast } from "sonner";
 import { FaHeart, FaShoppingCart, FaTrash } from "react-icons/fa";
@@ -24,24 +24,21 @@ export default function WishlistPage() {
       .then(async (d) => {
         const raw = d.items || d || [];
 
-        // First pass: enrich from localStorage cache
+        // Pass 1: enrich API items from localStorage cache
         let enriched = enrichWishlistItems(raw);
 
-        // Second pass: for items still missing a real name, fetch from backend API
+        // Pass 2: for items still missing name/price, try fetching from backend
         const missing = enriched.filter(
           (item) => !item.name || item.name === "Product" || item.price === 0
         );
-
         if (missing.length > 0) {
           const results = await Promise.allSettled(
             missing.map((item) => getProduct(item.product_id || item.id))
           );
-
           results.forEach((result, i) => {
             if (result.status === "fulfilled" && result.value) {
               const prod = result.value;
-              const target = missing[i];
-              const idx = enriched.findIndex((e) => e === target);
+              const idx = enriched.findIndex((e) => e === missing[i]);
               if (idx !== -1) {
                 enriched[idx] = {
                   ...enriched[idx],
@@ -51,7 +48,6 @@ export default function WishlistPage() {
                   brand: prod.brand || "",
                   discount_price: prod.discount_price,
                 };
-                // Cache for next time
                 cacheWishlistProduct(String(prod.id), {
                   name: prod.name, price: prod.price,
                   discount_price: prod.discount_price,
@@ -62,13 +58,28 @@ export default function WishlistPage() {
           });
         }
 
-        setItems(enriched);
+        // Pass 3: merge in locally-saved items (mock products the backend doesn't know)
+        const localItems = getLocalWishlistItems();
+        const apiProductIds = new Set(enriched.map((e) => String(e.product_id || e.id)));
+        const uniqueLocal = localItems.filter(
+          (li) => !apiProductIds.has(String(li.product_id))
+        );
+
+        setItems([...enriched, ...uniqueLocal]);
       })
       .catch(() => toast.error("Could not load wishlist"))
       .finally(() => setLoading(false));
   }, [loggedIn]);
 
-  async function handleRemove(wishlistId) {
+  async function handleRemove(item) {
+    const wishlistId = item.wishlist_item_id || item.id;
+    // Local-only items just need localStorage removal
+    if (item.isLocal) {
+      removeLocalWishlistItem(item.product_id);
+      setItems((p) => p.filter((i) => (i.wishlist_item_id || i.id) !== wishlistId));
+      toast.success("Removed from Wish List");
+      return;
+    }
     try {
       await removeFromWishlist(wishlistId);
       setItems((p) => p.filter((i) => (i.wishlist_item_id || i.id) !== wishlistId));
@@ -131,7 +142,7 @@ export default function WishlistPage() {
                       )}
                       {/* Remove button */}
                       <button
-                        onClick={(e) => { e.preventDefault(); handleRemove(wishlistId); }}
+                        onClick={(e) => { e.preventDefault(); handleRemove(item); }}
                         className="absolute top-1 right-1 p-1.5 bg-white rounded-full shadow text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Remove from Wish List"
                       >

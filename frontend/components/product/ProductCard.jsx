@@ -5,7 +5,7 @@ import { FaStar, FaHeart, FaShoppingCart } from "react-icons/fa";
 import { useCartStore } from "../../store/cartStore";
 import { addToWishlist } from "../../services/wishlist";
 import { isLoggedIn } from "../../services/auth";
-import { cacheWishlistProduct } from "../../store/wishlistCache";
+import { cacheWishlistProduct, saveLocalWishlistItem } from "../../store/wishlistCache";
 import { toast } from "sonner";
 
 export default function ProductCard({ product = {} }) {
@@ -41,14 +41,19 @@ export default function ProductCard({ product = {} }) {
           onClick={async (e) => {
             e.preventDefault();
             if (!isLoggedIn()) { toast.error("Sign in to save to Wish List"); return; }
+            cacheWishlistProduct(id, { name, price, image, brand, discount_price });
             try {
-              cacheWishlistProduct(id, { name, price, image, brand, discount_price });
               await addToWishlist(id);
-              setWishlisted(true);
-              toast.success("Added to Wish List");
-            } catch {
-              toast.error("Could not add to Wish List");
+            } catch (err) {
+              // 401 = not logged in; anything else = backend can't handle this product ID
+              // (e.g. mock/frontend-only products) — save locally instead
+              if (err?.response?.status === 401) {
+                toast.error("Sign in to save to Wish List"); return;
+              }
+              saveLocalWishlistItem(id, { name, price, image, brand, discount_price });
             }
+            setWishlisted(true);
+            toast.success("Added to Wish List");
           }}
           className={`absolute top-1 right-1 p-1.5 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity ${wishlisted ? "text-red-500" : "hover:text-red-500 text-gray-400"}`}
         >
