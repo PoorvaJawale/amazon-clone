@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "../../store/cartStore";
 import { isLoggedIn, logout, getMe } from "../../services/auth";
+import { saveSearch } from "../../store/searchHistory";
 import { getOrders } from "../../services/orders";
 import {
   FaMapMarkerAlt, FaSearch, FaShoppingCart, FaBars, FaChevronDown,
@@ -122,7 +123,10 @@ export default function Navbar() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (query.trim()) router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+    if (query.trim()) {
+      saveSearch(query.trim());
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+    }
   };
 
   const handleLogout = () => {

@@ -8,7 +8,10 @@ import DealCard from "../components/home/DealCard";
 import Carousel from "../components/home/Carousel";
 import { getProducts } from "../services/products";
 import { getRecommendations } from "../services/recommendations";
-import { FaClock } from "react-icons/fa";
+import { MOCK_PRODUCTS } from "../data/mockProducts";
+import { getRecentSearches, filterByRecentSearches } from "../store/searchHistory";
+import { FaClock, FaSearch } from "react-icons/fa";
+import { HiSparkles } from "react-icons/hi2";
 import { useCartStore } from "../store/cartStore";
 import Link from "next/link";
 
@@ -69,10 +72,30 @@ export default function Home() {
   const { addItem } = useCartStore();
   const [apiProducts, setApiProducts] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [searchMatches, setSearchMatches] = useState([]);
 
   useEffect(() => {
     getProducts().then(setApiProducts).catch(() => {});
-    getRecommendations().then(setRecommendations).catch(() => {});
+
+    // Read search history and build personalised product matches
+    const searches = getRecentSearches();
+    setRecentSearches(searches);
+
+    if (searches.length > 0) {
+      // Pass search context to recommendations API for AI-driven results
+      getRecommendations({ query: searches[0] })
+        .then((data) => {
+          setRecommendations(data && data.length > 0 ? data : []);
+        })
+        .catch(() => {});
+
+      // Also filter mock products locally for instant results
+      const matched = filterByRecentSearches(MOCK_PRODUCTS, searches);
+      setSearchMatches(matched.slice(0, 12));
+    } else {
+      getRecommendations().then(setRecommendations).catch(() => {});
+    }
   }, []);
 
   const allCarouselItems = recommendations.length ? recommendations : BEST_SELLERS;
@@ -85,6 +108,65 @@ export default function Home() {
         <HeroBanner />
 
         {/* ── 4-column deal card grid ── */}
+        {/* ── AI-personalised section: shows when user has searched ── */}
+        {searchMatches.length > 0 && (
+          <div className="max-w-[1500px] mx-auto px-3 pt-3 relative z-10">
+            <div className="bg-white shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <HiSparkles className="text-[#ff9900]" size={18} />
+                  <div>
+                    <h2 className="text-[18px] font-bold text-[#0f1111] leading-tight">
+                      Based on your recent{" "}
+                      {recentSearches.slice(0, 2).map((s, i) => (
+                        <span key={s}>
+                          {i > 0 && " & "}
+                          <Link href={`/search?q=${encodeURIComponent(s)}`}
+                            className="text-[#c45500] hover:underline capitalize">
+                            {s}
+                          </Link>
+                        </span>
+                      ))}
+                      {" "}searches
+                    </h2>
+                    <p className="text-xs text-[#565959]">AI-curated picks just for you</p>
+                  </div>
+                </div>
+                <Link href={`/search?q=${encodeURIComponent(recentSearches[0] || "")}`}
+                  className="text-xs text-[#0066c0] hover:text-[#c45500] hover:underline shrink-0">
+                  See all →
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {searchMatches.map((p) => {
+                  const fp = p.discount_price || p.price;
+                  const disc = p.discount_price && p.discount_price < p.price
+                    ? Math.round(((p.price - p.discount_price) / p.price) * 100) : 0;
+                  return (
+                    <Link key={p.id} href={`/product/${p.id}`} className="group flex flex-col">
+                      <div className="relative h-28 bg-[#f7f7f7] rounded overflow-hidden flex items-center justify-center mb-1.5 border border-transparent group-hover:border-[#e77600] transition-colors">
+                        {p.image
+                          ? <img src={p.image} alt={p.name} className="max-h-full max-w-full object-contain p-2 group-hover:scale-105 transition-transform" />
+                          : <div className="w-full h-full bg-gray-200" />}
+                        {disc > 0 && (
+                          <span className="absolute top-1 left-1 bg-[#cc0c39] text-white text-[8px] font-bold px-1 py-0.5 rounded">-{disc}%</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#0f1111] group-hover:text-[#c45500] line-clamp-2 leading-snug mb-0.5">{p.name}</p>
+                      <p className="text-sm font-bold text-[#0f1111]">₹{Number(fp).toLocaleString("en-IN")}</p>
+                      <button
+                        onClick={(e) => { e.preventDefault(); addItem({ id: p.id, name: p.name, price: fp, image: p.image }); }}
+                        className="mt-1 amazon-btn text-[9px] py-0.5 w-full">
+                        Add to Cart
+                      </button>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="max-w-[1500px] mx-auto px-3 -mt-10 relative z-10 space-y-3 pb-6">
 
           {/* Row 1: 4 cards */}
@@ -212,9 +294,13 @@ export default function Home() {
             />
           </div>
 
-          {/* Best Sellers Carousel */}
+          {/* Best Sellers / AI Recommendations Carousel */}
           <Carousel
-            title="Best Sellers & More Picks for You"
+            title={
+              recentSearches.length > 0
+                ? `More picks based on "${recentSearches[0]}"`
+                : "Best Sellers & More Picks for You"
+            }
             items={allCarouselItems}
             showBadge
           />
