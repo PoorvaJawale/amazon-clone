@@ -10,6 +10,7 @@ import { createOrder } from "../../../services/orders";
 import { useCartStore } from "../../../store/cartStore";
 import { isLoggedIn } from "../../../services/auth";
 import { cacheWishlistProduct, saveLocalWishlistItem } from "../../../store/wishlistCache";
+import { saveRecentlyViewed } from "../../../store/searchHistory";
 import { toast } from "sonner";
 import { MOCK_PRODUCTS, getProductById } from "../../../data/mockProducts";
 import {
@@ -78,13 +79,28 @@ export default function ProductPage() {
     getProduct(id)
       .then((data) => {
         const local = getProductById(id);
-        // Merge: local data enriches API data with gallery/features/colors if available
-        setProduct(local ? { ...data, ...local, id: data.id || local.id } : data);
+        const merged = local ? { ...data, ...local, id: data.id || local.id } : data;
+        setProduct(merged);
+        // Save to recently viewed so home page "Pick up where you left off" shows it
+        saveRecentlyViewed({
+          id: merged.id,
+          name: merged.name,
+          price: merged.discount_price || merged.price,
+          image: merged.images?.[0] || merged.image,
+          brand: merged.brand,
+        });
       })
       .catch(() => {
         const local = getProductById(id);
-        if (local) setProduct(local);
-        else toast.error("Product not found");
+        if (local) {
+          setProduct(local);
+          saveRecentlyViewed({
+            id: local.id, name: local.name,
+            price: local.discount_price || local.price,
+            image: local.images?.[0] || local.image,
+            brand: local.brand,
+          });
+        } else toast.error("Product not found");
       })
       .finally(() => setLoading(false));
   }, [id]);

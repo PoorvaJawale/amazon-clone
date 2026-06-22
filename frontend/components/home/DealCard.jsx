@@ -5,12 +5,22 @@ import { useCartStore } from "../../store/cartStore";
 import { useRouter } from "next/navigation";
 
 /* Small 2×2 grid card used in "Pick up where you left off" etc. */
-export default function DealCard({ title, items = [], seeMoreLabel = "See more", seeMoreHref = "/search?q=deals" }) {
+export default function DealCard({ title, subtitle, aiTag, items = [], seeMoreLabel = "See more", seeMoreHref = "/search?q=deals" }) {
   const { addItem } = useCartStore();
   const router = useRouter();
   return (
     <div className="bg-white p-4 flex flex-col h-full shadow-sm hover:shadow-md transition-shadow">
-      <h3 className="text-[18px] font-bold text-[#0f1111] mb-3 leading-tight">{title}</h3>
+      <div className="mb-3">
+        <div className="flex items-start justify-between gap-1">
+          <h3 className="text-[18px] font-bold text-[#0f1111] leading-tight">{title}</h3>
+          {aiTag && (
+            <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold text-[#c45500] bg-[#fff8f0] border border-[#f0c14b] px-1.5 py-0.5 rounded-full mt-0.5">
+              ✦ AI
+            </span>
+          )}
+        </div>
+        {subtitle && <p className="text-[11px] text-[#565959] mt-0.5">{subtitle}</p>}
+      </div>
       <div className="grid grid-cols-2 gap-3 flex-1">
         {items.slice(0, 4).map((item) => (
           <div
