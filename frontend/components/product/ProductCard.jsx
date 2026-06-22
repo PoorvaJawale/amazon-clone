@@ -1,11 +1,15 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { FaStar, FaHeart, FaShoppingCart } from "react-icons/fa";
 import { useCartStore } from "../../store/cartStore";
+import { addToWishlist } from "../../services/wishlist";
+import { isLoggedIn } from "../../services/auth";
 import { toast } from "sonner";
 
 export default function ProductCard({ product = {} }) {
   const { addItem } = useCartStore();
+  const [wishlisted, setWishlisted] = useState(false);
   const {
     id = "x", name = "Product", brand = "", price = 0,
     discount_price, image, rating = 4, reviews_count = 0,
@@ -33,8 +37,18 @@ export default function ProductCard({ product = {} }) {
           </span>
         )}
         <button
-          onClick={(e) => { e.preventDefault(); toast.success("Added to Wish List"); }}
-          className="absolute top-1 right-1 p-1.5 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 text-gray-400"
+          onClick={async (e) => {
+            e.preventDefault();
+            if (!isLoggedIn()) { toast.error("Sign in to save to Wish List"); return; }
+            try {
+              await addToWishlist(id);
+              setWishlisted(true);
+              toast.success("Added to Wish List");
+            } catch {
+              toast.error("Could not add to Wish List");
+            }
+          }}
+          className={`absolute top-1 right-1 p-1.5 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity ${wishlisted ? "text-red-500" : "hover:text-red-500 text-gray-400"}`}
         >
           <FaHeart size={12} />
         </button>

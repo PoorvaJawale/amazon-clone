@@ -8,7 +8,7 @@ import { isLoggedIn, logout, getMe } from "../../services/auth";
 import { getOrders } from "../../services/orders";
 import {
   FaMapMarkerAlt, FaSearch, FaShoppingCart, FaBars, FaChevronDown,
-  FaGift, FaBolt, FaStar, FaShoppingBag, FaTimes, FaGlobe
+  FaGift, FaStar, FaShoppingBag, FaTimes, FaGlobe, FaCheckCircle
 } from "react-icons/fa";
 import { HiSparkles } from "react-icons/hi2";
 import { toast } from "sonner";
@@ -83,6 +83,13 @@ export default function Navbar() {
   const [buyAgainItems, setBuyAgainItems] = useState([]);
   const [allMenuOpen, setAllMenuOpen] = useState(false);
 
+  // Address modal
+  const [addressOpen, setAddressOpen] = useState(false);
+  const [pincode, setPincode] = useState(() => typeof window !== "undefined" ? localStorage.getItem("pincode") || "" : "");
+  const [addressLine, setAddressLine] = useState(() => typeof window !== "undefined" ? localStorage.getItem("addressLine") || "" : "");
+  const [savedAddress, setSavedAddress] = useState(() => typeof window !== "undefined" ? localStorage.getItem("savedCity") || "" : "");
+  const addressRef = useRef(null);
+
   const t = (key, fallback) => (translations && translations[key]) || fallback;
 
   useEffect(() => {
@@ -96,10 +103,22 @@ export default function Navbar() {
     const handler = (e) => {
       if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false);
       if (langRef.current && !langRef.current.contains(e.target)) setLangOpen(false);
+      if (addressRef.current && !addressRef.current.contains(e.target)) setAddressOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  function saveAddress() {
+    if (!pincode) return;
+    localStorage.setItem("pincode", pincode);
+    localStorage.setItem("addressLine", addressLine);
+    const city = pincode.startsWith("4") ? "Mumbai" : pincode.startsWith("1") ? "Delhi" : pincode.startsWith("5") ? "Hyderabad" : pincode.startsWith("6") ? "Chennai" : pincode.startsWith("7") ? "Kolkata" : pincode.startsWith("56") ? "Bengaluru" : "India";
+    localStorage.setItem("savedCity", city);
+    setSavedAddress(city);
+    setAddressOpen(false);
+    toast.success(`Delivering to ${city} - ${pincode}`);
+  }
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -168,15 +187,53 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Deliver to */}
-          <Link href="/profile"
-            className="hidden lg:flex items-end gap-1 border border-transparent hover:border-white rounded px-2 py-2 shrink-0">
-            <FaMapMarkerAlt className="text-white mb-0.5 shrink-0" size={14} />
-            <div className="flex flex-col leading-none">
-              <span className="text-[#ccc] text-[11px]">Deliver to</span>
-              <span className="text-white font-bold text-[13px]">{user?.full_name?.split(" ")[0] || "India"}</span>
-            </div>
-          </Link>
+          {/* Deliver to — opens address modal */}
+          <div ref={addressRef} className="relative hidden lg:flex items-end">
+            <button
+              onClick={() => setAddressOpen(!addressOpen)}
+              className="flex items-end gap-1 border border-transparent hover:border-white rounded px-2 py-2 shrink-0"
+            >
+              <FaMapMarkerAlt className="text-white mb-0.5 shrink-0" size={14} />
+              <div className="flex flex-col leading-none text-left">
+                <span className="text-[#ccc] text-[11px]">Deliver to</span>
+                <span className="text-white font-bold text-[13px]">{savedAddress || user?.full_name?.split(" ")[0] || "India"}</span>
+              </div>
+            </button>
+
+            {addressOpen && (
+              <div className="absolute top-full left-0 mt-1 bg-white text-[#0f1111] shadow-2xl border border-[#ccc] rounded z-50 w-80 p-4">
+                <h3 className="font-bold text-sm mb-3 text-[#0f1111]">Choose your location</h3>
+                <p className="text-xs text-[#565959] mb-3">Delivery options and speeds may vary for different locations.</p>
+                <div className="space-y-2 mb-3">
+                  <input
+                    value={pincode}
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="Enter PIN code"
+                    className="w-full border border-[#d5d9d9] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#e77600] focus:ring-1 focus:ring-[#e77600]"
+                  />
+                  <input
+                    value={addressLine}
+                    onChange={(e) => setAddressLine(e.target.value)}
+                    placeholder="Street / Area (optional)"
+                    className="w-full border border-[#d5d9d9] rounded px-3 py-2 text-sm focus:outline-none focus:border-[#e77600] focus:ring-1 focus:ring-[#e77600]"
+                  />
+                </div>
+                <button
+                  onClick={saveAddress}
+                  disabled={pincode.length < 6}
+                  className="w-full amazon-btn py-2 text-sm font-medium disabled:opacity-50"
+                >
+                  Apply
+                </button>
+                {savedAddress && (
+                  <div className="mt-2 flex items-center gap-1 text-[#007600] text-xs">
+                    <FaCheckCircle size={11} />
+                    <span>Currently delivering to <strong>{savedAddress}</strong> – {pincode}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Search bar */}
           <form onSubmit={handleSearch} className="flex flex-1 h-10 self-center rounded overflow-hidden min-w-0">
@@ -203,7 +260,7 @@ export default function Navbar() {
               onChange={(e) => setQuery(e.target.value)}
               type="text"
               placeholder={t("Search Amazon.in", "Search Amazon.in")}
-              className="flex-1 px-3 text-black text-sm outline-none min-w-0 w-full"
+              className="flex-1 px-3 text-black text-sm outline-none min-w-0 w-full bg-white"
             />
             <button type="submit" className="bg-[#febd69] hover:bg-[#f3a847] px-3 sm:px-4 shrink-0 flex items-center justify-center">
               <FaSearch className="text-[#333]" size={16} />
@@ -328,48 +385,29 @@ export default function Navbar() {
             <span>{t("All", "All")}</span>
           </button>
 
-          {/* Rufus AI */}
-          <Link href="/ai-assistant"
-            className="flex items-center gap-1 border border-transparent hover:border-white rounded px-2.5 py-0.5 text-xs font-semibold text-[#00b0c4] bg-[#0d2030] hover:bg-[#163040] rounded-full mx-1 shrink-0 transition-colors">
-            <HiSparkles className="text-[#00c8e0]" size={13} />
-            Rufus AI
-          </Link>
-
-          {/* Fresh */}
           <Link href="/search?q=fresh+grocery" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">Fresh</Link>
 
-          {/* Keep Shopping For */}
           <button onClick={handleKeepShopping}
             className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px] flex items-center gap-1">
             {t("Keep Shopping", "Keep Shopping for")}
           </button>
 
-          {/* Other links */}
           <Link href="/search?q=movies" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">MX Player</Link>
-          <Link href="/search?q=sell" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">Sell</Link>
-          <Link href="/search?q=amazon+pay" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">Amazon Pay</Link>
+
           <Link href="/search?q=gift+cards" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px] flex items-center gap-1">
             <FaGift size={11} /> Gift Cards
           </Link>
 
-          {/* Buy Again */}
           <button onClick={handleBuyAgain}
             className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">
             {t("Buy Again", "Buy Again")}
           </button>
 
-          <Link href="/search?q=gifts" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">Gift Ideas</Link>
-          <Link href="/search?q=basics" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">AmazonBasics</Link>
-          <Link href="/electronics" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">Electronics</Link>
-          <Link href="/fashion" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">Fashion</Link>
-          <Link href="/home-kitchen" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">Home</Link>
-
-          <div className="ml-auto hidden xl:flex items-center gap-2 shrink-0 font-bold text-[#febd69] text-[13px]">
-            <FaBolt size={12} />
-            <span>prime day</span>
-            <span className="text-white text-[11px] font-normal">| 4–6 July</span>
-            <FaBolt size={12} />
-          </div>
+          <Link href="/search?q=todays+deals" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">Today's Deals</Link>
+          <Link href="/search?q=new+arrivals" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px]">New Arrivals</Link>
+          <Link href="/ai-assistant" className="nav-link whitespace-nowrap shrink-0 px-2 text-[13px] flex items-center gap-1">
+            <HiSparkles size={12} className="text-[#febd69]" /> AI Assistant
+          </Link>
         </div>
 
         {/* All menu overlay */}

@@ -18,6 +18,32 @@ const STARTERS = [
   "Find me eco-friendly home products",
 ];
 
+// Mock purchase & browsing history for demo accounts — used to personalise recommendations
+const DEMO_HISTORY = {
+  "poorva@example.com": {
+    purchased: ["boAt Airdopes 161 TWS Earbuds", "Noise ColorFit Ultra 3 Smartwatch", "Wildcraft 45L Backpack"],
+    viewed: ["Sony WH-1000XM5 Headphones", "Samsung Galaxy M34 5G", "Philips Air Fryer"],
+    interests: ["Electronics", "Fitness", "Travel Gear"],
+  },
+  "demo@amazon.in": {
+    purchased: ["Prestige Pressure Cooker", "Milton Flask 1L", "Cello Dinner Set"],
+    viewed: ["Bajaj Mixer Grinder", "Story@Home Comforter", "Philips LED Bulbs"],
+    interests: ["Kitchen", "Home Decor", "Daily Essentials"],
+  },
+};
+
+function getHistoryContext() {
+  if (typeof window === "undefined") return null;
+  const email = localStorage.getItem("userEmail") || "";
+  if (DEMO_HISTORY[email]) return DEMO_HISTORY[email];
+  // Generic history based on cart/wishlist usage
+  return {
+    purchased: [],
+    viewed: [],
+    interests: ["Electronics", "Fashion", "Home & Kitchen"],
+  };
+}
+
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
   return (
@@ -65,10 +91,15 @@ function ProductChip({ product }) {
 }
 
 export default function AIAssistantPage() {
+  const history = getHistoryContext();
+  const historyGreeting = history?.purchased?.length
+    ? `\n\nBased on your past purchases — *${history.purchased.slice(0, 2).join(", ")}* — I'll tailor my picks for you.`
+    : "";
+
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: "Hi! I'm Rufus, your Amazon AI assistant. I can help you find products, compare prices, and get personalized recommendations. What are you looking for today?",
+      content: `Hi! I'm Rufus, your Amazon AI assistant. I can help you find products, compare prices, and get personalised recommendations.${historyGreeting}`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -88,7 +119,10 @@ export default function AIAssistantPage() {
     setLoading(true);
 
     try {
-      const result = await generateRecommendations({ query: msg });
+      const contextualQuery = history?.purchased?.length
+        ? `${msg} (User previously bought: ${history.purchased.join(", ")}; interests: ${history.interests.join(", ")})`
+        : msg;
+      const result = await generateRecommendations({ query: contextualQuery });
       const products = Array.isArray(result) ? result : (result.recommendations || result.products || []);
       const replyText = products.length
         ? `Here are ${products.length} recommendations for "${msg}":`
