@@ -44,7 +44,8 @@ function SearchContent() {
     ? [...apiProducts, ...MOCK_PRODUCTS.filter((m) => !apiProducts.some((a) => a.id === m.id))]
     : MOCK_PRODUCTS;
 
-  let displayed = [...basePool];
+  // Drop any malformed entries missing a name
+  let displayed = basePool.filter((p) => p && p.name);
 
   // Text search
   if (q) {

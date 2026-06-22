@@ -5,6 +5,7 @@ import { FaStar, FaHeart, FaShoppingCart } from "react-icons/fa";
 import { useCartStore } from "../../store/cartStore";
 import { addToWishlist } from "../../services/wishlist";
 import { isLoggedIn } from "../../services/auth";
+import { cacheWishlistProduct } from "../../store/wishlistCache";
 import { toast } from "sonner";
 
 export default function ProductCard({ product = {} }) {
@@ -41,6 +42,7 @@ export default function ProductCard({ product = {} }) {
             e.preventDefault();
             if (!isLoggedIn()) { toast.error("Sign in to save to Wish List"); return; }
             try {
+              cacheWishlistProduct(id, { name, price, image, brand, discount_price });
               await addToWishlist(id);
               setWishlisted(true);
               toast.success("Added to Wish List");

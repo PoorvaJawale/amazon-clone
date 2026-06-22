@@ -4,6 +4,7 @@ import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { getWishlist, removeFromWishlist } from "../../services/wishlist";
 import { isLoggedIn } from "../../services/auth";
+import { enrichWishlistItems } from "../../store/wishlistCache";
 import { useCartStore } from "../../store/cartStore";
 import { toast } from "sonner";
 import { FaHeart, FaShoppingCart } from "react-icons/fa";
@@ -17,13 +18,19 @@ export default function WishlistPage() {
 
   useEffect(() => {
     if (!loggedIn) { setLoading(false); return; }
-    getWishlist().then((d) => setItems(d.items || d || [])).catch(() => toast.error("Could not load wishlist")).finally(() => setLoading(false));
+    getWishlist()
+      .then((d) => {
+        const raw = d.items || d || [];
+        setItems(enrichWishlistItems(raw));
+      })
+      .catch(() => toast.error("Could not load wishlist"))
+      .finally(() => setLoading(false));
   }, [loggedIn]);
 
-  async function handleRemove(id) {
+  async function handleRemove(wishlistId) {
     try {
-      await removeFromWishlist(id);
-      setItems((p) => p.filter((i) => (i.id || i.wishlist_item_id) !== id));
+      await removeFromWishlist(wishlistId);
+      setItems((p) => p.filter((i) => (i.wishlist_item_id || i.id) !== wishlistId));
       toast.success("Removed from Wish List");
     } catch { toast.error("Remove failed"); }
   }
@@ -53,10 +60,14 @@ export default function WishlistPage() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {items.map((item) => {
-                const name = item.name || item.product?.name || "Product";
-                const price = item.price || item.product?.price || 0;
-                const img = item.image || item.product?.image;
-                const id = item.id || item.wishlist_item_id;
+                // enrichWishlistItems already resolved name/price/image
+                const name = item.name;
+                const price = item.price;
+                const img = item.image;
+                const brand = item.brand;
+                const wishlistId = item.wishlist_item_id || item.id;
+                const productId = item.product_id || item.id;
+                const id = wishlistId;
 
                 return (
                   <div key={id} className="border border-gray-100 hover:border-gray-300 rounded p-3 group flex flex-col">
@@ -69,10 +80,11 @@ export default function WishlistPage() {
                         <FaHeart size={12} />
                       </button>
                     </div>
-                    <p className="text-sm text-[#0f1111] line-clamp-2 leading-snug flex-1">{name}</p>
+                    {brand && <p className="text-[10px] text-[#0066c0] mb-0.5">{brand}</p>}
+                    <Link href={`/product/${productId}`} className="text-sm text-[#0f1111] hover:text-[#c45500] line-clamp-2 leading-snug flex-1">{name}</Link>
                     <p className="text-base font-bold text-[#0f1111] mt-1">₹{Number(price).toLocaleString("en-IN")}</p>
                     <button
-                      onClick={() => addItem({ id, name, price, image: img })}
+                      onClick={() => { addItem({ id: productId, name, price, image: img }); toast.success("Added to cart"); }}
                       className="mt-2 amazon-btn w-full text-xs flex items-center justify-center gap-1"
                     >
                       <FaShoppingCart size={11} /> Add to Cart
