@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Use Next.js API proxy to avoid CORS issues
+const BASE = "/api/proxy";
 
 const api = axios.create({ baseURL: BASE, headers: { "Content-Type": "application/json" } });
 

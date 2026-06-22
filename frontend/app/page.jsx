@@ -95,6 +95,7 @@ export default function Home() {
               title="Pick up where you left off"
               items={PICK_UP}
               seeMoreLabel="See more"
+              seeMoreHref="/search?q=tumblers+flasks"
             />
 
             {/* Card 2 */}
@@ -102,6 +103,7 @@ export default function Home() {
               title="Pick up where you left off"
               items={STRAWS}
               seeMoreLabel="See all"
+              seeMoreHref="/search?q=reusable+straws"
             />
 
             {/* Card 3: Continue shopping */}
@@ -114,6 +116,7 @@ export default function Home() {
                 { id: "k4", name: "Premium Bamboo Drawer Dividers", price: 799, image: "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=300&q=60" },
               ]}
               seeMoreLabel="See all deals"
+              seeMoreHref="/fashion"
             />
 
             {/* Card 4: Deals of the day */}
@@ -153,6 +156,7 @@ export default function Home() {
               title="Revamp your home"
               items={HOME_CATS.map((c) => ({ ...c, price: null }))}
               seeMoreLabel="Explore more ideas"
+              seeMoreHref="/home-kitchen"
             />
 
             {/* Amazon Business */}
