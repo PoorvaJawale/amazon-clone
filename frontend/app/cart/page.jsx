@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { useCartStore } from "../../store/cartStore";
-import { getCart, removeFromCart } from "../../services/cart";
+import { getCart, addToCart, removeFromCart } from "../../services/cart";
 import { createOrder } from "../../services/orders";
 import { isLoggedIn } from "../../services/auth";
 import { toast } from "sonner";
@@ -56,14 +56,26 @@ export default function CartPage() {
     }
   }
 
-  function startCheckout() {
+  async function startCheckout() {
     if (!loggedIn) { toast.error("Please sign in to place an order"); return; }
+    // Eagerly sync local-only items to backend cart so createOrder succeeds
+    if (apiItems.length === 0 && localItems.length > 0) {
+      await Promise.allSettled(
+        localItems.map((item) => addToCart(item.id, item.qty || item.quantity || 1))
+      );
+    }
     setCheckoutStep("address");
   }
 
   async function confirmOrder() {
     setPlacing(true);
     try {
+      // If backend cart is empty but local cart has items, sync them first
+      if (loggedIn && apiItems.length === 0 && localItems.length > 0) {
+        await Promise.allSettled(
+          localItems.map((item) => addToCart(item.id, item.qty || item.quantity || 1))
+        );
+      }
       await createOrder({});
       setCheckoutStep("success");
       clear();
