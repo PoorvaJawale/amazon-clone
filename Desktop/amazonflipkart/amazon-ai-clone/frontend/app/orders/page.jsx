@@ -4,6 +4,7 @@ import Navbar from "../../components/layout/Navbar";
 import Footer from "../../components/layout/Footer";
 import { getOrders } from "../../services/orders";
 import { isLoggedIn } from "../../services/auth";
+import { getLocalOrders } from "../../store/localOrdersStore";
 import { toast } from "sonner";
 import Link from "next/link";
 import { FaBoxOpen } from "react-icons/fa";
@@ -22,7 +23,19 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (!loggedIn) { setLoading(false); return; }
-    getOrders().then((d) => setOrders(d || [])).catch(() => toast.error("Could not load orders")).finally(() => setLoading(false));
+    const local = getLocalOrders();
+    getOrders()
+      .then((d) => {
+        // Merge backend orders + locally-saved demo orders, newest first
+        const backend = d || [];
+        const merged = [...local, ...backend].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        setOrders(merged);
+      })
+      .catch(() => {
+        // Backend unavailable — show local orders only
+        setOrders(local);
+      })
+      .finally(() => setLoading(false));
   }, [loggedIn]);
 
   return (

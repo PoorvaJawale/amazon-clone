@@ -11,6 +11,7 @@ import { useCartStore } from "../../../store/cartStore";
 import { isLoggedIn } from "../../../services/auth";
 import { cacheWishlistProduct, saveLocalWishlistItem } from "../../../store/wishlistCache";
 import { saveRecentlyViewed } from "../../../store/searchHistory";
+import { saveLocalOrder } from "../../../store/localOrdersStore";
 import { toast } from "sonner";
 import { MOCK_PRODUCTS, getProductById } from "../../../data/mockProducts";
 import {
@@ -159,16 +160,38 @@ export default function ProductPage() {
     }
   }
 
+  // Product is a demo/mock product if its ID is not a plain integer
+  const isDemo = !(Number.isInteger(Number(product?.id)) && String(product?.id) === String(Number(product?.id)));
+
   async function handleBuyNow() {
     if (!loggedIn) { toast.error("Please sign in first"); return; }
-    addItem({ id: product.id, name: product.name, price: product.discount_price || product.price, image: product.image || (product.images?.[0]) });
+    if (!isDemo) {
+      // Real backend product — sync to backend cart first so createOrder finds it
+      try { await addToCart(Number(product.id), qty); } catch { /* proceed anyway */ }
+    }
     setCheckoutStep("address");
   }
 
   async function confirmOrder() {
     setPlacing(true);
     try {
-      await createOrder({});
+      if (isDemo) {
+        await new Promise((r) => setTimeout(r, 800));
+        saveLocalOrder({
+          id: `DEMO-${Date.now()}`,
+          status: "Pending",
+          created_at: new Date().toISOString(),
+          total_amount: (product.discount_price || product.price) * qty,
+          items: [{
+            name: product.name,
+            price: product.discount_price || product.price,
+            quantity: qty,
+            image: product.image || product.images?.[0],
+          }],
+        });
+      } else {
+        await createOrder({});
+      }
       setCheckoutStep("success");
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Order failed — please try again");

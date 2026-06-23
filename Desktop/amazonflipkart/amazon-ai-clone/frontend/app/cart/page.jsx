@@ -8,6 +8,7 @@ import { createOrder } from "../../services/orders";
 import { isLoggedIn } from "../../services/auth";
 import { toast } from "sonner";
 import Link from "next/link";
+import { saveLocalOrder } from "../../store/localOrdersStore";
 import { FaTrash, FaLock, FaTimes, FaMapMarkerAlt, FaCreditCard, FaMobile, FaMoneyBillWave, FaCheckCircle } from "react-icons/fa";
 
 const PAYMENT_METHODS = [
@@ -79,8 +80,19 @@ export default function CartPage() {
     setPlacing(true);
     try {
       if (allDemo) {
-        // All items are demo/mock products — simulate order placement
         await new Promise((r) => setTimeout(r, 800));
+        saveLocalOrder({
+          id: `DEMO-${Date.now()}`,
+          status: "Pending",
+          created_at: new Date().toISOString(),
+          total_amount: subtotal,
+          items: displayItems.map((it) => ({
+            name: it.name || it.product?.name,
+            price: it.price || it.product?.price || 0,
+            quantity: it.quantity || it.qty || 1,
+            image: it.image || it.product?.image,
+          })),
+        });
       } else {
         await createOrder({});
       }
